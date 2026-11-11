@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Infinite Legends — Pokémon Town Prototype</title>
+<style>
+:root{color-scheme:dark;--ink:#17212b;--panel:#101a24;--line:#435666}
+*{box-sizing:border-box}body{margin:0;background:#101820;color:#f4f7f8;font:15px system-ui,sans-serif;display:flex;min-height:100vh;flex-direction:column;align-items:center}
+header{width:min(100%,760px);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+h1{font-size:17px;margin:0}#status{font-size:12px;color:#b9d1df}
+main{width:min(100%,760px);padding:0 10px 18px}
+#frame{background:#243747;border:3px solid #526b7c;border-radius:12px;padding:6px;box-shadow:0 10px 35px #0008}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;background:#8ccf83;border-radius:5px;touch-action:none}
+#message{margin:10px 2px;padding:11px 12px;min-height:60px;background:var(--panel);border:1px solid var(--line);border-radius:9px;line-height:1.4}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center;margin-top:10px}
+.pad{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(2,44px);gap:4px;justify-content:center}
+button{border:1px solid #60798a;background:#25394a;color:#fff;border-radius:9px;font-weight:700;font-size:17px;min-height:42px;touch-action:none}
+button:active{background:#45667d;transform:translateY(1px)}
+.pad button{min-height:44px}.up{grid-column:2}.left{grid-column:1;grid-row:2}.down{grid-column:2;grid-row:2}.right{grid-column:3;grid-row:2}
+.actions{display:grid;gap:8px}.actions button{font-size:14px}
+small{display:block;color:#b8c8d1;text-align:center;margin-top:9px}
+@media(min-width:620px){.controls{max-width:470px;margin:12px auto 0}}
+</style>
+</head>
+<body>
+<header><h1>INFINITE LEGENDS · POKÉMON TOWN</h1><span id="status">Prototype 0.1 · Aetheria</span></header>
+<main>
+<div id="frame"><canvas id="game" width="480" height="320" aria-label="Top-down pixel town game"></canvas></div>
+<div id="message" role="status">Welcome to Pokémon Town! Explore the plaza. Walk up to a building or person and press INTERACT.</div>
+<div class="controls">
+<div class="pad" aria-label="Movement controls">
+<button class="up" data-dir="up">▲</button><button class="left" data-dir="left">◀</button><button class="down" data-dir="down">▼</button><button class="right" data-dir="right">▶</button>
+</div>
+<div class="actions"><button id="interact">INTERACT / TALK</button><button id="quest">TOWN GUIDE</button></div>
+</div>
+<small>Touch controls or use arrow keys / WASD. This is an original browser prototype, not a GBA ROM.</small>
+</main>
+<script>
+(()=>{
+const c=document.getElementById('game'),ctx=c.getContext('2d'),msg=document.getElementById('message');
+const T=16,W=30,H=20;
+let px=14,py=15,face='up',steps=0,quest=false;
+const buildings=[
+{x:3,y:3,w:5,h:4,name:'Pokémon Center',color:'#e7e7e7',roof:'#e65b61',detail:'The nurse welcomes you. Your Pokémon are looking healthy!'},
+{x:22,y:3,w:5,h:4,name:'Poké Mart',color:'#f1dca8',roof:'#4c9ad1',detail:'The shopkeeper says: Potions and Poké Balls are in stock.'},
+{x:3,y:12,w:5,h:4,name:'Trainer School',color:'#d9c6a1',roof:'#5b83bd',detail:'A student explains type matchups: Water beats Fire, Grass beats Water, and Fire beats Grass.'},
+{x:22,y:12,w:5,h:4,name:'Aetheria Gym',color:'#c9d4df',roof:'#8a65bd',detail:'The Gym doors are closed for preparations. The Gym Leader will be revealed soon.'}
+];
+const npcs=[
+{x:11,y:8,name:'Veteran Trainer',line:'I have travelled far. Trainers from many regions are gathering in Aetheria.'},
+{x:17,y:7,name:'New Trainer',line:'I am nervous about my first journey. Could you help me find my lucky scarf?'},
+{x:10,y:13,name:'Researcher',line:'Strange energy readings have appeared beyond the town. I am investigating.'},
+{x:18,y:13,name:'Gym Guide',line:'Welcome! The first Gym challenge is being prepared. Explore town while you wait.'}
+];
+const trees=[[1,1],[2,1],[7,1],[8,1],[9,1],[20,1],[21,1],[27,1],[28,1],[1,8],[1,9],[28,8],[28,9],[1,17],[2,18],[7,18],[8,18],[20,18],[21,18],[27,18],[28,17]];
+function rect(x,y,w,h,col){ctx.fillStyle=col;ctx.fillRect(x*T,y*T,w*T,h*T)}
+function tile(x,y,col){ctx.fillStyle=col;ctx.fillRect(x*T,y*T,T,T)}
+function draw(){
+rect(0,0,W,H,'#85c979');
+// grass texture
+for(let y=0;y<H;y++)for(let x=0;x<W;x++)if((x*7+y*11)%9===0)tile(x,y,'#7abd70');
+// paths and plaza
+rect(13,0,4,H,'#d8c18c');rect(0,9,W,3,'#d8c18c');rect(10,7,10,8,'#e5d2a4');
+for(let x=0;x<W;x++)for(let y=9;y<12;y++)if((x+y)%3===0)tile(x,y,'#c9ae78');
+trees.forEach(([x,y])=>{tile(x,y,'#75533b');ctx.fillStyle='#287b49';ctx.beginPath();ctx.arc(x*T+8,y*T+6,10,0,Math.PI*2);ctx.fill();ctx.fillStyle='#48a95c';ctx.beginPath();ctx.arc(x*T+6,y*T+3,6,0,Math.PI*2);ctx.fill()});
+buildings.forEach(b=>{
+rect(b.x,b.y+1,b.w,b.h-1,'#705846');rect(b.x,b.y,b.w,b.h-1,b.color);
+ctx.fillStyle=b.roof;ctx.beginPath();ctx.moveTo(b.x*T-3,(b.y+1)*T);ctx.lineTo((b.x+b.w/2)*T,(b.y-1)*T);ctx.lineTo((b.x+b.w)*T+3,(b.y+1)*T);ctx.closePath();ctx.fill();
+rect(b.x+b.w/2-1,b.y+b.h-2,2,2,'#654735');ctx.fillStyle='#273d4d';ctx.fillRect((b.x+b.w/2-1)*T,(b.y+b.h-2)*T, T*2,T*2);
+ctx.fillStyle='#17212b';ctx.font='9px system-ui';ctx.textAlign='center';ctx.fillText(b.name,(b.x+b.w/2)*T,(b.y+b.h)*T+10);
+});
+npcs.forEach(n=>{ctx.fillStyle='#202b3a';ctx.fillRect(n.x*T+3,n.y*T+5,10,10);ctx.fillStyle='#f0c7a0';ctx.fillRect(n.x*T+4,n.y*T,8,8);ctx.fillStyle='#e8e8e8';ctx.fillRect(n.x*T+2,n.y*T+10,12,5)});
+ctx.fillStyle='#263b78';ctx.fillRect(px*T+3,py*T+5,10,10);ctx.fillStyle='#f1c9a4';ctx.fillRect(px*T+4,py*T,8,8);ctx.fillStyle='#f2d34e';ctx.fillRect(px*T+2,py*T+10,12,4);
+ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.strokeRect(px*T+1,py*T+1,14,14);
+ctx.fillStyle='#253747';ctx.font='10px system-ui';ctx.textAlign='left';ctx.fillText('POKÉMON TOWN',8,12);
+}
+function say(t){msg.textContent=t}
+function blocked(x,y){
+if(x<0||y<0||x>=W||y>=H)return true;
+if(trees.some(([a,b])=>a===x&&b===y))return true;
+if(buildings.some(b=>x>=b.x&&x<b.x+b.w&&y>=b.y&&y<b.y+b.h))return true;
+return false;
+}
+function move(d){face=d;let x=px,y=py;if(d==='up')y--;if(d==='down')y++;if(d==='left')x--;if(d==='right')x++;if(!blocked(x,y)){px=x;py=y;steps++;say('You are exploring Pokémon Town. Steps: '+steps+'. Press INTERACT near people and buildings.')}draw()}
+function interact(){
+const tx=px+(face==='right'?1:face==='left'?-1:0),ty=py+(face==='down'?1:face==='up'?-1:0);
+const n=npcs.find(a=>Math.abs(a.x-tx)<=1&&Math.abs(a.y-ty)<=1);
+if(n){if(n.name==='New Trainer'&&!quest){quest=true;say(n.name+': '+n.line+' You found the scarf near the plaza! Quest complete — thank you!')}else say(n.name+': '+n.line);return}
+const b=buildings.find(a=>tx>=a.x-1&&tx<=a.x+a.w&&ty>=a.y-1&&ty<=a.y+a.h);
+if(b){say(b.name+': '+b.detail);return}
+say('There is nothing to interact with here. Try the buildings or talk to the townspeople.');
+}
+function guide(){say('Town guide: Pokémon Center (north-west), Poké Mart (north-east), Trainer School (south-west), Aetheria Gym (south-east). Find the New Trainer in the plaza for a small quest.')}
+document.getElementById('interact').addEventListener('click',interact);
+document.getElementById('quest').addEventListener('click',guide);
+document.addEventListener('keydown',e=>{const k=e.key.toLowerCase();const map={arrowup:'up',w:'up',arrowdown:'down',s:'down',arrowleft:'left',a:'left',arrowright:'right',d:'right'};if(map[k]){e.preventDefault();move(map[k])}if(k===' '||k==='enter'){e.preventDefault();interact()}});
+document.querySelectorAll('[data-dir]').forEach(b=>{let timer;const d=b.dataset.dir;b.addEventListener('pointerdown',e=>{e.preventDefault();move(d);timer=setInterval(()=>move(d),180)});['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>clearInterval(timer)))});
+draw();
+})();
+</script>
+</body></html>
